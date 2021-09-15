@@ -5,8 +5,8 @@
       "count": 4
     },
     {
-      "sql": "select * from c where c.route = 'ANC:OKO'",
-      "count": 2
+      "sql": "select * from c where c.route = 'CLT:MBJ'",
+      "count": 200
     }
   ]
 }

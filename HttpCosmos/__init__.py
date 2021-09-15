@@ -24,34 +24,44 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
         
         expected_token = os.environ['AZURE_FUNCTION_SECRET1']
         provided_token = req.headers['Auth-Token']
-        logging.info(f'provided_token: {provided_token}')
+        #logging.info('provided_token: {provided_token}'.format(provided_token))
 
         if expected_token == provided_token:
-            post_data = req.get_json()  # get_json() returns an object (i.e.- dict), not a str
-            sql = post_data['sql']
-            count = int(post_data['count'])
-            sleep_ms = get_sleep_ms(post_data)
-            valid_request = False
+            post_data = req.get_json()  # get_json() returns an object (i.e. - dict)
+            queries = post_data['queries']
 
             response_obj = dict()
             response_obj['function_name'] = fname
             response_obj['invocation_id'] = inv_id
-            response_obj['sql']   = sql
-            response_obj['count'] = count
-            response_obj['sleep_ms'] = sleep_ms
+            response_obj['post_data'] = post_data
             response_obj['results'] = list()
             logging.info(response_obj)
 
-            if request_is_valid(sql, count):
+            if len(queries) > 0:
                 client = get_cosmos_client()
-                logging.info('client {}'.format(client))
+                query_count = 0
+                max_query_count = get_max_query_count()
+                logging.info('max_query_count: {}'.format(max_query_count))
 
-                for i in range(count):
-                    #time.sleep(sleep_ms)
-                    result = dict()
-                    result['i'] = i
-                    #result['epoch'] = datetime.now().timestamp()
-                    response_obj['results'].append(result)
+                for query in queries:
+                    logging.info(query)
+                    sql = query['sql']
+                    count = int(query['count'])
+                    for i in range(count):
+                        query_count = query_count + 1
+                        if query_count <= max_query_count:
+                            result = dict()
+                            result['seq'] = query_count
+                            result['i'] = i
+                            result['sql'] = sql
+                            epoch1 = datetime.now().timestamp()
+                            result['epoch1'] = epoch1
+                            # execute_query
+                            epoch2 = datetime.now().timestamp()
+                            elapsed = epoch2 - epoch1
+                            result['epoch2'] = epoch2
+                            result['elapsed'] = elapsed
+                            response_obj['results'].append(result)
 
                 jstr = json.dumps(response_obj, indent=2, sort_keys=False)
                 logging.info(jstr)
@@ -63,6 +73,16 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
             return func.HttpResponse("Unauthorized", status_code=401)
     except:
         return func.HttpResponse("Error", status_code=500)
+
+def get_max_query_count():
+    try:
+        s = os.environ['AZURE_FUNCTION_MAX_QUERIES']
+        logging.info('get_max_query_count; s: {}'.formats(s))
+        if s == None:
+            return 20
+        return int(s)
+    except:
+        return 20
 
 def get_sleep_ms(post_data):
     try:

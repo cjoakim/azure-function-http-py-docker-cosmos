@@ -31,5 +31,5 @@ echo 'using url: '$url
 curl -v -X POST \
     -H "Content-Type: application/json" \
     -H "Auth-Token:"$AZURE_FUNCTION_SECRET1 \
-    -d @postdata/b1.json \
+    -d @postdata/body1.json \
     $url

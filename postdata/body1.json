@@ -1,0 +1,12 @@
+{
+  "queries": [
+    {
+      "sql": "select * from c where c.pk = 'ANC:OKO' offset 0 limit 1",
+      "count": 4
+    },
+    {
+      "sql": "select * from c where c.route = 'ANC:OKO'",
+      "count": 2
+    }
+  ]
+}

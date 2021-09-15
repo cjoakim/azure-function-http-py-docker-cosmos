@@ -4,6 +4,8 @@ A Containerized Python HTTP-triggered Azure Function which queries CosmosDB
 
 ## Links
 
+- https://docs.microsoft.com/en-us/azure/azure-functions/
+
 - https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local
 
 - https://docs.microsoft.com/en-us/azure/azure-functions/functions-create-function-linux-custom-image?tabs=in-process%2Cbash%2Cazure-cli&pivots=programming-language-python

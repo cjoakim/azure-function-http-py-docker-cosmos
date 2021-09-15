@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import time
+import traceback
 
 from datetime import datetime
 
@@ -54,14 +55,15 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
             logging.info(response_obj)
 
             if len(queries) > 0:
+                connect_start_epoch = datetime.now().timestamp()
                 client = get_cosmos_client()
-                logging.info('client: {}'.format(client))
-
+                #logging.info('client: {}'.format(client))
                 database_proxy = get_database_proxy(client, dbname)
-                logging.info('database_proxy: {}'.format(database_proxy))
-
+                #logging.info('database_proxy: {}'.format(database_proxy))
                 container_proxy = get_container_proxy(database_proxy, cname)
-                logging.info('container_proxy: {}'.format(container_proxy))
+                #logging.info('container_proxy: {}'.format(container_proxy))
+                connect_finish_epoch = datetime.now().timestamp()
+                response_obj['connect_seconds'] = connect_finish_epoch - connect_start_epoch
 
                 query_count = 0
                 max_query_count = get_max_query_count()
@@ -80,11 +82,18 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
                             result['sql'] = sql
                             epoch1 = datetime.now().timestamp()
                             result['epoch1'] = epoch1
-                            # execute_query
+                            
+                            query_results = query_container(container_proxy, sql, True, 100)
+                            if query_results == None:
+                                logging.info('no query results')
+                            else:
+                                for doc in query_results:
+                                    logging.info(doc)
+
                             epoch2 = datetime.now().timestamp()
                             elapsed = epoch2 - epoch1
                             result['epoch2'] = epoch2
-                            result['elapsed'] = elapsed
+                            result['elapsed_seconds'] = elapsed
                             response_obj['results'].append(result)
 
                 jstr = json.dumps(response_obj, indent=2, sort_keys=False)
@@ -108,7 +117,6 @@ def get_max_query_count():
     except:
         return 20
 
-
 def get_cosmos_client():
     uri = os.environ['AZURE_COSMOSDB_SQLDB_URI']
     key = os.environ['AZURE_COSMOSDB_SQLDB_KEY']
@@ -123,6 +131,20 @@ def get_database_proxy(c, name):
 def get_container_proxy(db_proxy, name):
     logging.info('get_container_proxy: {} {}'.format(db_proxy, name))
     return db_proxy.get_container_client(name)
+
+def query_container(ctrproxy, sql, xpartition, max_items=100):
+    try:
+        logging.info('query_container, sql: {} {} {}'.format(
+            sql, xpartition, max_items))
+        self.reset_record_diagnostics()
+        return ctrproxy.query_items(
+            query=sql,
+            enable_cross_partition_query=xpartition,
+            max_item_count=max_items,
+            populate_query_metrics=True)
+    except:
+        traceback.print_exc()
+        return None
 
 def reset_record_diagnostics():
     record_diagnostics = diagnostics.RecordDiagnostics()

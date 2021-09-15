@@ -15,11 +15,11 @@ if __name__ == "__main__":
     postdata['queries']   = queries
     
     q1 = dict()
-    q1['sql'] = "select * from c where c.pk = 'ANC:OKO' offset 0 limit 1"
+    q1['sql'] = "select * from c where c.pk = 'GUM:MAJ' offset 0 limit 3"
     q1['count'] = 4 
 
     q2 = dict()
-    q2['sql'] = "select * from c where c.route = 'ANC:OKO'"
+    q2['sql'] = "select * from c where c.pk = 'CLT:MBJ'"
     q2['count'] = 2 
 
     queries.append(q1)

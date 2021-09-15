@@ -9,14 +9,28 @@ from datetime import datetime
 
 import azure.functions as func
 
+# import azure.cosmos.cosmos_client as cosmos_client
+# import azure.cosmos.errors as errors
+# import azure.cosmos.http_constants as http_constants
+# import azure.cosmos.documents as documents
+
 import azure.cosmos.cosmos_client as cosmos_client
 import azure.cosmos.errors as errors
 import azure.cosmos.http_constants as http_constants
+import azure.cosmos.diagnostics as diagnostics
 import azure.cosmos.documents as documents
+import azure.cosmos.exceptions as exceptions
+import azure.cosmos.partition_key as partition_key
+
+REQUEST_CHARGE_HEADER = 'x-ms-request-charge'
+ACTIVITY_ID_HEADER    = 'x-ms-activity-id'
 
 
 def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
-    client = None
+    database, container = None, None
+    client, database_proxy, container_proxy = None, None, None
+    record_diagnostics = diagnostics.RecordDiagnostics()
+
     try:
         fname = context.function_name
         inv_id = context.invocation_id
@@ -28,6 +42,8 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
 
         if expected_token == provided_token:
             post_data = req.get_json()  # get_json() returns an object (i.e. - dict)
+            dbname  = post_data['database']
+            cname   = post_data['container']
             queries = post_data['queries']
 
             response_obj = dict()
@@ -39,6 +55,14 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
 
             if len(queries) > 0:
                 client = get_cosmos_client()
+                logging.info('client: {}'.format(client))
+
+                database_proxy = get_database_proxy(client, dbname)
+                logging.info('database_proxy: {}'.format(database_proxy))
+
+                container_proxy = get_container_proxy(database_proxy, cname)
+                logging.info('container_proxy: {}'.format(container_proxy))
+
                 query_count = 0
                 max_query_count = get_max_query_count()
                 logging.info('max_query_count: {}'.format(max_query_count))
@@ -64,7 +88,7 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
                             response_obj['results'].append(result)
 
                 jstr = json.dumps(response_obj, indent=2, sort_keys=False)
-                logging.info(jstr)
+                #logging.info(jstr)
                 return func.HttpResponse(jstr)
             else:
                 return func.HttpResponse("Bad Request", status_code=400) 
@@ -84,17 +108,6 @@ def get_max_query_count():
     except:
         return 20
 
-def get_sleep_ms(post_data):
-    try:
-        return float(post_data['sleep_ms'])
-    except:
-        return 0.1
-
-def request_is_valid(sql, count):
-    if (count > 0) and (count <= 100):
-        if sql.lower().startswith('select '):
-            return True
-    return False
 
 def get_cosmos_client():
     uri = os.environ['AZURE_COSMOSDB_SQLDB_URI']
@@ -102,3 +115,14 @@ def get_cosmos_client():
     logging.info('uri: {} key: {}'.format(uri, key))
     return cosmos_client.CosmosClient(uri, {'masterKey': key})
 
+def get_database_proxy(c, name):
+    logging.info('get_database_proxy: {} {}'.format(c, name))
+    reset_record_diagnostics()
+    return c.get_database_client(database=name)
+
+def get_container_proxy(db_proxy, name):
+    logging.info('get_container_proxy: {} {}'.format(db_proxy, name))
+    return db_proxy.get_container_client(name)
+
+def reset_record_diagnostics():
+    record_diagnostics = diagnostics.RecordDiagnostics()

@@ -10,8 +10,10 @@ import os
 if __name__ == "__main__":
     postdata = dict()
     queries = list()
-    postdata['queries'] = queries
-
+    postdata['database']  = 'dev'
+    postdata['container'] = 'travel'
+    postdata['queries']   = queries
+    
     q1 = dict()
     q1['sql'] = "select * from c where c.pk = 'ANC:OKO' offset 0 limit 1"
     q1['count'] = 4 

@@ -2,11 +2,8 @@ import json
 import logging
 import os
 import time
-import traceback
 
 from datetime import datetime
-
-# import arrow
 
 import azure.functions as func
 
@@ -24,6 +21,7 @@ ITEM_COUNT_HEADER     = 'x-ms-item-count'
 HEADERS_OF_INTEREST   = [
     REQUEST_CHARGE_HEADER, DURATION_MS_HEADER, ITEM_COUNT_HEADER]
 
+
 def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     database, container = None, None
     client, db_proxy, ctr_proxy = None, None, None
@@ -31,13 +29,12 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     cosmos_error, other_error = None, None
 
     try:
-        fname = context.function_name
+        fname  = context.function_name
         inv_id = context.invocation_id
         logging.info(f'{fname}, invocation_id: {inv_id}')
         
         expected_token = os.environ['AZURE_FUNCTION_SECRET1']
         provided_token = req.headers['Auth-Token']
-        #logging.info('provided_token: {provided_token}'.format(provided_token))
 
         if expected_token == provided_token:
             post_data = req.get_json()  # get_json() returns an object (i.e. - dict)
@@ -46,11 +43,11 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
             queries = post_data['queries']
 
             response_obj = dict()
+            response_obj['_datetime'] = str(datetime.now())
             response_obj['_function_name'] = fname
             response_obj['_invocation_id'] = inv_id
             response_obj['post_data'] = post_data
             response_obj['results'] = list()
-            logging.info(response_obj)
 
             if len(queries) > 0:
                 connect_start_epoch = datetime.now().timestamp()
@@ -62,14 +59,12 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
 
                 query_count = 0
                 max_query_count = get_max_query_count()
-                logging.info('max_query_count: {}'.format(max_query_count))
 
                 for query in queries:
-                    logging.info(query)
                     sql = query['sql']
-                    client_verbose = str(query['verbose']).lower() == 'true'
-                       
                     count = int(query['count'])
+                    client_verbose = str(query['verbose']).lower() == 'true'
+
                     for idx in range(count):
                         query_count = query_count + 1
                         if query_count <= max_query_count:
@@ -85,7 +80,6 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
             else:
                 return func.HttpResponse("Bad Request", status_code=400) 
         else:
-            # HTTP/1.1 401 Unauthorized
             return func.HttpResponse("Unauthorized", status_code=401)
     except:
         return func.HttpResponse("Error", status_code=500)
@@ -93,7 +87,6 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
 def get_max_query_count():
     try:
         s = os.environ['AZURE_FUNCTION_MAX_QUERIES']
-        logging.info('get_max_query_count; s: {}'.formats(s))
         if s == None:
             return 20
         return int(s)
@@ -103,15 +96,15 @@ def get_max_query_count():
 def get_cosmos_client():
     uri = os.environ['AZURE_COSMOSDB_SQLDB_URI']
     key = os.environ['AZURE_COSMOSDB_SQLDB_KEY']
-    logging.info('uri: {} key: {}'.format(uri, key))
+    #logging.info('uri: {}'.format(uri))
     return cosmos_client.CosmosClient(uri, {'masterKey': key})
 
 def get_db_proxy(c, name):
-    logging.info('get_db_proxy: {} {}'.format(c, name))
+    #logging.info('get_db_proxy: {} {}'.format(c, name))
     return c.get_database_client(database=name)
 
 def get_ctr_proxy(db_proxy, name):
-    logging.info('get_ctr_proxy: {} {}'.format(db_proxy, name))
+    #logging.info('get_ctr_proxy: {} {}'.format(db_proxy, name))
     return db_proxy.get_container_client(name)
 
 def query_container(cproxy, result, sql, client_verbose):  

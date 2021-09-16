@@ -1,11 +1,11 @@
 version: '3.7'
 services:
   console:
-    image: cjoakim/az-function-http-py-cosmos:latest
+    image: cjoakim/azure-function-http-py-cosmos:latest
     ports:
       - "8080:80"
     environment:
     - AZURE_COSMOSDB_SQLDB_URI=${AZURE_COSMOSDB_SQLDB_URI}
     - AZURE_COSMOSDB_SQLDB_KEY=${AZURE_COSMOSDB_SQLDB_KEY}
     - AZURE_FUNCTION_SECRET1=${AZURE_FUNCTION_SECRET1}
-
+    - AZURE_FUNCTION_MAX_QUERIES=50

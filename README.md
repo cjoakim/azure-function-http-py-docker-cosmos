@@ -215,6 +215,14 @@ Modify this script to change **cjoakim** to your name.
 $ ./build_container.sh
 ```
 
+### DockerHub
+
+The containerized application is available as a public image on DockerHub:
+
+```
+cjoakim/azure-function-http-py-cosmos:latest
+```
+
 ### Start the Container with Docker Compose
 
 ```

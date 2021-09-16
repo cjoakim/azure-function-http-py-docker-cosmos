@@ -102,4 +102,3 @@ az functionapp config appsettings list \
     --resource-group $name
 
 echo 'done'
-

@@ -4,11 +4,13 @@
   "queries": [
     {
       "sql": "select * from c where c.pk = 'GUM:MAJ' offset 0 limit 3",
-      "count": 4
+      "count": 4,
+      "verbose": "true"
     },
     {
       "sql": "select * from c where c.pk = 'CLT:MBJ'",
-      "count": 2
+      "count": 2,
+      "verbose": "false"
     }
   ]
 }

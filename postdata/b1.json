@@ -1,5 +1,0 @@
-{
-    "sql": "select * from c where c.pk = 'ANC:OKO' offset 0 limit 1",
-    "count": "6",
-    "sleep_ms": "10.0"
-}

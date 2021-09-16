@@ -24,13 +24,14 @@ import azure.cosmos.exceptions as exceptions
 import azure.cosmos.partition_key as partition_key
 
 REQUEST_CHARGE_HEADER = 'x-ms-request-charge'
-ACTIVITY_ID_HEADER    = 'x-ms-activity-id'
+DURATION_MS_HEADER    = 'x-ms-request-duration-ms'
 
 
 def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     database, container = None, None
     client, database_proxy, container_proxy = None, None, None
     record_diagnostics = diagnostics.RecordDiagnostics()
+    cosmos_error, other_error = None, None
 
     try:
         fname = context.function_name
@@ -56,12 +57,9 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
 
             if len(queries) > 0:
                 connect_start_epoch = datetime.now().timestamp()
-                client = get_cosmos_client()
-                #logging.info('client: {}'.format(client))
-                database_proxy = get_database_proxy(client, dbname)
-                #logging.info('database_proxy: {}'.format(database_proxy))
+                client          = get_cosmos_client()
+                database_proxy  = get_database_proxy(client, dbname)
                 container_proxy = get_container_proxy(database_proxy, cname)
-                #logging.info('container_proxy: {}'.format(container_proxy))
                 connect_finish_epoch = datetime.now().timestamp()
                 response_obj['connect_seconds'] = connect_finish_epoch - connect_start_epoch
 
@@ -72,6 +70,7 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
                 for query in queries:
                     logging.info(query)
                     sql = query['sql']
+                    client_verbose = str(query['verbose']).lower() == 'true'
                     count = int(query['count'])
                     for i in range(count):
                         query_count = query_count + 1
@@ -80,20 +79,45 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
                             result['seq'] = query_count
                             result['i'] = i
                             result['sql'] = sql
+                            result['docs'] = list()
                             epoch1 = datetime.now().timestamp()
-                            result['epoch1'] = epoch1
+                            doc_count = 0
+
+                            record_diagnostics = diagnostics.RecordDiagnostics()
+                            cosmos_error, other_error = None, None
+                            query_results = query_container(
+                                container_proxy, sql, True, 100, record_diagnostics)
+
+                            logging.error(record_diagnostics)
                             
-                            query_results = query_container(container_proxy, sql, True, 100)
                             if query_results == None:
-                                logging.info('no query results')
+                                if cosmos_error != None:
+                                    logging.info(cosmos_error)
+                                    result['cosmos_error'] = str(cosmos_error)
+                                if other_error != None:
+                                    logging.info(other_error)
+                                    result['cosmos_error'] = str(cosmos_error)
                             else:
                                 for doc in query_results:
-                                    logging.info(doc)
-
+                                    doc_count = doc_count + 1
+                                    logging.info('doc id: {}'.format(doc['id']))
+                                    if client_verbose:
+                                        result['docs'].append(doc)
                             epoch2 = datetime.now().timestamp()
-                            elapsed = epoch2 - epoch1
-                            result['epoch2'] = epoch2
-                            result['elapsed_seconds'] = elapsed
+
+                            headers = record_diagnostics.headers
+                            for key in sorted(headers.keys()):
+                                logging.info('header: {} -> {}'.format(key, headers[key]))
+                            if REQUEST_CHARGE_HEADER in headers:
+                                result['ru'] = record_diagnostics.headers[REQUEST_CHARGE_HEADER]
+                            else:
+                                result['ru'] = -1
+                            if DURATION_MS_HEADER in headers:
+                                result['cosmos_query_ms'] = float(record_diagnostics.headers[DURATION_MS_HEADER])
+                            else:
+                                result['cosmos_query_ms'] = -1
+                            result['doc_count'] = doc_count
+                            result['client_query_ms'] = (epoch2 - epoch1) * 1000.0
                             response_obj['results'].append(result)
 
                 jstr = json.dumps(response_obj, indent=2, sort_keys=False)
@@ -125,26 +149,29 @@ def get_cosmos_client():
 
 def get_database_proxy(c, name):
     logging.info('get_database_proxy: {} {}'.format(c, name))
-    reset_record_diagnostics()
     return c.get_database_client(database=name)
 
 def get_container_proxy(db_proxy, name):
     logging.info('get_container_proxy: {} {}'.format(db_proxy, name))
     return db_proxy.get_container_client(name)
 
-def query_container(ctrproxy, sql, xpartition, max_items=100):
+def query_container(ctrproxy, sql, xpartition, max_items, rd):
     try:
         logging.info('query_container, sql: {} {} {}'.format(
             sql, xpartition, max_items))
-        self.reset_record_diagnostics()
         return ctrproxy.query_items(
             query=sql,
             enable_cross_partition_query=xpartition,
             max_item_count=max_items,
-            populate_query_metrics=True)
-    except:
-        traceback.print_exc()
+            populate_query_metrics=True,
+            response_hook=rd)
+    except CosmosHttpResponseError as ce:
+        cosmos_error = ce
+        logging.error(ce)
+        return None
+    except Error as err:
+        other_error = err
+        logging.error(err) 
         return None
 
-def reset_record_diagnostics():
-    record_diagnostics = diagnostics.RecordDiagnostics()
+# https://github.com/Azure/azure-sdk-for-python/blob/azure-cosmos_4.2.0/sdk/cosmos/azure-cosmos/azure/cosmos/exceptions.py

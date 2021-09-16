@@ -3,12 +3,12 @@
   "container": "travel",
   "queries": [
     {
-      "sql": "select * from c where c.pk = 'GUM:MAJ' offset 0 limit 3",
-      "count": 4,
+      "sql": "select * from c where c.pk = 'GUM:MAJ' offset 0 limit 1",
+      "count": 1,
       "verbose": "true"
     },
     {
-      "sql": "select * from c where c.pk = 'CLT:MBJ'",
+      "sql": "select * from c where c.pk = 'CLT:MBJ' offset 0 limit 1",
       "count": 2,
       "verbose": "false"
     }

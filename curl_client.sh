@@ -10,6 +10,7 @@
 
 local_func_url="http://localhost:7071/api/HttpCosmos"
 local_docker_url="http://localhost:8080/api/HttpCosmos"
+azure_function_url="https://cjoakimfunctions.azurewebsites.net/api/HttpCosmos"
 
 if [ "$1" == 'local_func' ]
 then 
@@ -23,12 +24,12 @@ fi
 
 if [ "$1" == 'azure' ]
 then 
-    url=$AZURE_FUNCTION_URL
+    url=$azure_function_url
 fi
 
 echo 'using url: '$url
 
-curl -v -X POST \
+curl -X POST \
     -H "Content-Type: application/json" \
     -H "Auth-Token:"$AZURE_FUNCTION_SECRET1 \
     -d @postdata/body1.json \

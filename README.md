@@ -87,7 +87,7 @@ azure-functions
 ```
 
 I use **pyenv** to create python virtual environments, see pyenv.sh. 
-Use your preferred tool/library for this.
+Use your preferred tool/library for this.  See [pyenv.sh](pyenv.sh).
 
 ```
 $ ./pyenv.sh

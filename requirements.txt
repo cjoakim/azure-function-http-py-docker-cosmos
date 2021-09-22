@@ -1,4 +1,9 @@
 # Do not include azure-functions-worker as it may conflict with the Azure Functions platform
 
+# these two libraries are needed in the deployed Azure Function
 azure-cosmos
 azure-functions
+
+# this library is NOT needed in the deployed Azure Function
+# it is only here for the http_client.py file in this directory
+requests

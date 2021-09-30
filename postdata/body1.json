@@ -9,12 +9,12 @@
     },
     {
       "sql": "select * from c where c.pk = 'GUM:MAJ' offset 0 limit 1",
-      "count": 1,
+      "count": 0,
       "verbose": "false"
     },
     {
       "sql": "select * from c where c.pk = 'CLT:MBJ' offset 0 limit 1",
-      "count": 3,
+      "count": 0,
       "verbose": "false"
     }
   ]

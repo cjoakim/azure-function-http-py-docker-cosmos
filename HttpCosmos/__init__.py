@@ -1,3 +1,7 @@
+# HTTP-Triggered Azure Function, implemented in Python, for CosmosDB
+# performance testing.
+# Chris Joakim, Microsoft, September 2021
+
 import json
 import logging
 import os
@@ -21,6 +25,10 @@ ITEM_COUNT_HEADER     = 'x-ms-item-count'
 HEADERS_OF_INTEREST   = [
     REQUEST_CHARGE_HEADER, DURATION_MS_HEADER, ITEM_COUNT_HEADER]
 
+# See https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-python?tabs=azurecli-linux%2Capplication-level#global-variables
+# regarding global variables.  the Azure Functions runtime often reuses the same process for multiple executions of the same app.
+CACHED_COSMOS_CLIENT = None
+
 
 def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     database, container = None, None
@@ -43,6 +51,7 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
             queries = post_data['queries']
 
             response_obj = dict()
+            response_obj['_function_version'] = '2021/09/30 18:12'
             response_obj['_datetime'] = str(datetime.now())
             response_obj['_function_name'] = fname
             response_obj['_invocation_id'] = inv_id
@@ -94,10 +103,16 @@ def get_max_query_count():
         return 20
 
 def get_cosmos_client():
-    uri = os.environ['AZURE_COSMOSDB_SQLDB_URI']
-    key = os.environ['AZURE_COSMOSDB_SQLDB_KEY']
-    #logging.info('uri: {}'.format(uri))
-    return cosmos_client.CosmosClient(uri, {'masterKey': key})
+    global CACHED_COSMOS_CLIENT
+    if CACHED_COSMOS_CLIENT is None:
+        uri = os.environ['AZURE_COSMOSDB_SQLDB_URI']
+        key = os.environ['AZURE_COSMOSDB_SQLDB_KEY']
+        logging.info('creating new CosmosClient, uri: {}'.format(uri))
+        CACHED_COSMOS_CLIENT = cosmos_client.CosmosClient(uri, {'masterKey': key})
+        return CACHED_COSMOS_CLIENT
+    else:
+        logging.info('using cached CosmosClient')
+        return CACHED_COSMOS_CLIENT
 
 def get_db_proxy(c, name):
     #logging.info('get_db_proxy: {} {}'.format(c, name))
@@ -144,6 +159,3 @@ def query_container(cproxy, result, sql, client_verbose):
         logging.error(e)
     except:
         result['other_error'] = '?' 
-
-
-# https://github.com/Azure/azure-sdk-for-python/blob/azure-cosmos_4.2.0/sdk/cosmos/azure-cosmos/azure/cosmos/exceptions.py
